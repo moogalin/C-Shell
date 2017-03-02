@@ -16,19 +16,19 @@ int numArgs = 0;
 
 int isValidInput() {
 	if ( first == '#') {
-		printf("you entered a # sign\n");
-		fflush(stdout);
+//		printf("you entered a # sign\n");
+//		fflush(stdout);
 		return 0;
 	}
 
 	else if (first == '\n') {
-		printf("you entered a blank line\n");
-		fflush(stdout);
+//		printf("you entered a blank line\n");
+//		fflush(stdout);
 		return 0;
 	}
 	else if (first == '\t' && numArgs == 1) {
-		printf("you entered a tab\n");
-		fflush(stdout);
+//		printf("you entered a tab\n");
+//		fflush(stdout);
 		return 0;
 	} 
 
@@ -93,27 +93,19 @@ int main( int argc, char * argv[]) {
 	parent_PID = getpid();
 	ssize_t buffer = 0;	
 	char * token;
-	char * temp = malloc(2048); 
-	int i = 0;
+	char temp[2048]; 
+	int i = 0, j, k;
 
 	/* Display shell until exit command received */
 	while(1) {
 	i = 0;
-
-	/* clear the character input array */
-//	memset(message, '\0', sizeof(message));
 
 	/* shell prompt */
 	printf(":");
 	fflush(stdout);
 	
 	/* retrieve message */
-//	fgets(message, 2048, stdin);
-//	fflush(stdout);
 	getline(&message, &buffer, stdin);
-
-
-	printf("Message: %s\n", message); 
 
 	/* If exit message received, terminate processes and exit shell */
 	if (strcmp(message, "exit\n") == 0) {
@@ -121,10 +113,26 @@ int main( int argc, char * argv[]) {
 		return 0;	
 	}
 
-	/* Get number of arguments */
-	args = malloc(512 * sizeof(char*));
+	/* Copy message to temp variable to get arguments */
+	strcpy(temp, message);
 
-	token = strtok(message, " ");
+	printf("Message: %s\n", message);
+	fflush(stdout);
+ 
+	printf("temp: %s\n", temp);
+	fflush(stdout);
+
+
+	/* Get number of arguments and assign to arg array */
+	args = calloc(512,  sizeof(char*));
+
+	for (i = 0; i < 512; i++) {
+		args[i] = calloc(1,20);
+
+	}
+	i = 0;
+
+	token = strtok(temp, " ");
 
 	while (	token != NULL) {
 	
@@ -136,9 +144,35 @@ int main( int argc, char * argv[]) {
 	token = strtok(NULL, " ");
 		
 	}
-
 	args[i] = NULL;
 	numArgs = i;
+
+	/* Look through arguments and replace $$ with shell pid */
+//	printf("arg[0] length is: %d\n", strlen(args[1]));
+	for (j=0; j < numArgs; j++) {
+	
+		for (k=0; k<strlen(args[j])-1; k++) {
+
+			if (*(args[j]+k) == *(args[j]+k+1)) {
+				if (*(args[j]+k) == '$') {
+					printf("dolla!\n");
+					fflush(stdout);
+				}
+				printf("the same: %d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
+				fflush(stdout);
+			}
+			else {
+				printf("%d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
+				fflush(stdout);
+			
+			}
+		}
+
+
+	}	
+
+//	args[i] = NULL;
+//	numArgs = i;
 
 	/* Get first character of first argument */
 	first = *args[0];
@@ -146,14 +180,14 @@ int main( int argc, char * argv[]) {
 	/* Get first character of last argument */
 	last = *args[i-1];
 
-	printf("first char: %c\n", first);
+//	printf("first char: %c\n", first);
 
 	if (last == '&') {
 		printf("last char: %c\n", last);
 	}
 
-//	printf("message: %s", message);
-//	fflush(stdout);
+	printf("message: %s", message);
+	fflush(stdout);
 	
 
 	/* Check for tab, newline, or # symbol to begin user input */
@@ -181,6 +215,9 @@ int main( int argc, char * argv[]) {
 //	}
 
 	free(message);
+	for (i = 0; i < 512; i++) {
+		free(args[i]);
+	}
 	free(args);
 
 }
