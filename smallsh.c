@@ -88,6 +88,19 @@ void status() {
 	
 }
 
+void displayArgs() {
+	int i=0;
+
+
+	for (i=0; i < numArgs; i++) {
+
+		printf("arg[%d] = %s\n", i, args[i]);
+		fflush(stdout);
+	}
+	
+
+}
+
 int main( int argc, char * argv[]) {
 
 	parent_PID = getpid();
@@ -127,7 +140,7 @@ int main( int argc, char * argv[]) {
 	args = calloc(512,  sizeof(char*));
 
 	for (i = 0; i < 512; i++) {
-		args[i] = calloc(1,20);
+		args[i] = calloc(1,3330);
 
 	}
 	i = 0;
@@ -157,6 +170,15 @@ int main( int argc, char * argv[]) {
 				if (*(args[j]+k) == '$') {
 					printf("dolla!\n");
 					fflush(stdout);
+
+					printf("arg: %s\n", args[j]);
+					fflush(stdout);
+
+					sprintf(args[j]+k, "%d",parent_PID);
+					fflush(stdout);
+
+					printf("arg: %s\n",args[j]);
+					fflush(stdout);
 				}
 				printf("the same: %d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
 				fflush(stdout);
@@ -173,6 +195,9 @@ int main( int argc, char * argv[]) {
 
 //	args[i] = NULL;
 //	numArgs = i;
+
+	/* display args for debugging */
+	displayArgs();
 
 	/* Get first character of first argument */
 	first = *args[0];
