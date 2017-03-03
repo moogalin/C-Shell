@@ -14,6 +14,9 @@ char first;
 char last;
 int numArgs = 0;
 char statusMsg[20];
+pid_t background_PIDS[400];
+
+
 
 
 int isValidInput() {
@@ -58,7 +61,7 @@ void callDirectory() {
 //	printf("first two characters are cd\n");
 //	fflush(stdout);	
 
-	if (strcmp(message, "cd\n") == 0) {
+	if (strcmp(message, "cd") == 0) {
 //		printf("Only characters are cd\n");
 //		fflush(stdout);
 
@@ -76,7 +79,10 @@ void callDirectory() {
 		fflush(stdout); 
 	}
 	else {
-	//	chdir(
+//		printf("arg1: %s\n", args[1]);
+//		fflush(stdout);
+
+		chdir(args[1]);
 	}	
 }
 
@@ -86,9 +92,22 @@ void status() {
 	
 }
 
-void getArgs(char * temp) {
+void getArgs() {
 	int i;
 	char * token;
+	char temp[2048];
+
+	/* Remove new line character from message */
+	message[strlen(message)-1] = '\0';
+
+	/* Copy message to temp variable to get arguments */
+	strcpy(temp, message);
+
+	printf("Message: %s\n", message);
+	fflush(stdout);
+ 
+	printf("temp: %s\n", temp);
+	fflush(stdout);
 
 	/* Get number of arguments and assign to arg array */
 	for (i = 0; i < 512; i++) {
@@ -100,15 +119,16 @@ void getArgs(char * temp) {
 	token = strtok(temp, " ");
 
 	while (	token != NULL) {
-		args[i] = token;
+		//args[i] = token;
+		strcpy(args[i], token);
 		i++;
-//		printf("args[%d]=%s", i-1, token);
-//		fflush(stdout);
+	//	printf("token[%d]=%s, args=%s", i-1, token, args[i-1]);
+	//	fflush(stdout);
 
 	token = strtok(NULL, " ");
 		
 	}
-
+	
 	args[i] = NULL;
 	numArgs = i;
 
@@ -168,6 +188,23 @@ void displayArgs() {
 
 }
 
+void addToArray(pid_t pid) {
+	int i;
+
+	for (i =0; i < 400; i++) {
+
+		if (background_PIDS[i] == -1) {
+			background_PIDS[i] = pid;
+			return;		
+		}
+	}
+
+
+
+
+
+}
+
 int main( int argc, char * argv[]) {
 
 	parent_PID = getpid();
@@ -176,9 +213,39 @@ int main( int argc, char * argv[]) {
 	char temp[2048]; 
 	int i = 0, j, k, l;
 	int charwrit;
+	pid_t spawnPid = -5;	
+	int foreground = 1;
+	int childExitMethod = -5;
+	pid_t child_PID;
+
+	/* Print shell PID */
+	printf("Shell PID: %i\n", parent_PID);
+	fflush(stdout);
+
+	/* Initialize array of PIDs to zero */
+	for (i =0; i < 400; i++) {
+	
+		background_PIDS[i] = -1;
+	}
+
 
 	/* Display shell until exit command received */
 	while(1) {
+
+	/* Display list of background pids for debugging */
+	for (i=0; i < 400; i++) {
+		if (background_PIDS[i] != -1) {
+			printf("BG_PID[%d] = %i\n", i, background_PIDS[i]);
+			fflush(stdout);
+			
+			printf("Checking if exists \n");
+			fflush(stdout);
+
+			
+		}
+	}
+
+	foreground = 1;
 	i = 0;
 
 	/* shell prompt */
@@ -194,18 +261,8 @@ int main( int argc, char * argv[]) {
 		return 0;	
 	}
 
-	/* Copy message to temp variable to get arguments */
-	strcpy(temp, message);
-
-	printf("Message: %s\n", message);
-	fflush(stdout);
- 
-	printf("temp: %s\n", temp);
-	fflush(stdout);
-
-
 	/* Get number of arguments and assign to arg array */
-	getArgs(temp);
+	getArgs();
 
 	/* Check for tab, newline, or # symbol to begin user input */
 	if (!isValidInput()) {
@@ -222,9 +279,10 @@ int main( int argc, char * argv[]) {
 
 	if (last == '&') {
 		printf("last char: %c\n", last);
+		foreground = 0;
 	}
 
-	printf("message: %s", message);
+	printf("message: %s\n", message);
 	fflush(stdout);
 	
 
@@ -240,6 +298,42 @@ int main( int argc, char * argv[]) {
 		continue;
 	}
 
+	spawnPid = fork();
+
+	if (spawnPid == -1) {	
+			perror("Hull breach!");
+			exit(1);
+	}
+	else if (spawnPid == 0) {
+			printf("I am the child process in action\n");
+			fflush(stdout);
+			printf("My parent: %i Me: %i\n", getppid(), getpid());
+			fflush(stdout);
+
+			sleep(10);
+			exit(0);
+	}
+
+	
+	if (foreground) {
+		printf("Foreground process!\n");
+		fflush(stdout);
+	
+		printf("PARENT: PID: %d, waiting...\n", spawnPid);
+		fflush(stdout);
+
+		waitpid(spawnPid, &childExitMethod, 0);
+
+		printf("PARENT: Child process terminated, exiting!\n");
+		fflush(stdout);	
+	}
+	else {
+		printf("background pid is %d\n", spawnPid);
+		fflush(stdout);		
+
+		addToArray(spawnPid);
+		continue;
+	}
 
 	}
 
