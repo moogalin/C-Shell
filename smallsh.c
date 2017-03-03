@@ -9,7 +9,7 @@
 /* Global */
 pid_t parent_PID;
 char * message;
-char ** args;
+char * args[512];
 char first;
 char last;
 int numArgs = 0;
@@ -107,7 +107,8 @@ int main( int argc, char * argv[]) {
 	ssize_t buffer = 0;	
 	char * token;
 	char temp[2048]; 
-	int i = 0, j, k;
+	int i = 0, j, k, l;
+	int charwrit;
 
 	/* Display shell until exit command received */
 	while(1) {
@@ -137,10 +138,10 @@ int main( int argc, char * argv[]) {
 
 
 	/* Get number of arguments and assign to arg array */
-	args = calloc(512,  sizeof(char*));
+//	args = malloc(sizeof(char*)*512);
 
 	for (i = 0; i < 512; i++) {
-		args[i] = calloc(1,3330);
+		args[i] = malloc(30);
 
 	}
 	i = 0;
@@ -164,30 +165,24 @@ int main( int argc, char * argv[]) {
 //	printf("arg[0] length is: %d\n", strlen(args[1]));
 	for (j=0; j < numArgs; j++) {
 	
-		for (k=0; k<strlen(args[j])-1; k++) {
-
+		l = strlen(args[j])-1;
+		for (k=0; k<l; k++) {
 			if (*(args[j]+k) == *(args[j]+k+1)) {
 				if (*(args[j]+k) == '$') {
-					printf("dolla!\n");
-					fflush(stdout);
-
 					printf("arg: %s\n", args[j]);
 					fflush(stdout);
+				
+					printf("argj + k = %s", args[j]+k);
 
-					sprintf(args[j]+k, "%d",parent_PID);
-					fflush(stdout);
+					charwrit = sprintf(args[j]+k, "%d",parent_PID);
 
-					printf("arg: %s\n",args[j]);
+					printf("arg: %s charwrit: %d\n",args[j], charwrit);
 					fflush(stdout);
 				}
-				printf("the same: %d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
-				fflush(stdout);
+				
 			}
-			else {
 				printf("%d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
 				fflush(stdout);
-			
-			}
 		}
 
 
