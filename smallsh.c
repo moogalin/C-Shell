@@ -13,6 +13,8 @@ char * args[512];
 char first;
 char last;
 int numArgs = 0;
+char statusMsg[20];
+
 
 int isValidInput() {
 	if ( first == '#') {
@@ -74,11 +76,7 @@ void callDirectory() {
 		fflush(stdout); 
 	}
 	else {
-
-
-	
-//		printf("There are args\n");
-//		fflush(stdout);
+	//	chdir(
 	}	
 }
 
@@ -86,6 +84,75 @@ void status() {
 	printf("first word is status\n");
 	fflush(stdout);
 	
+}
+
+void getArgs(char * temp) {
+	int i;
+	char * token;
+
+	/* Get number of arguments and assign to arg array */
+	for (i = 0; i < 512; i++) {
+		args[i] = malloc(30);
+
+	}
+	i = 0;
+
+	token = strtok(temp, " ");
+
+	while (	token != NULL) {
+		args[i] = token;
+		i++;
+//		printf("args[%d]=%s", i-1, token);
+//		fflush(stdout);
+
+	token = strtok(NULL, " ");
+		
+	}
+
+	args[i] = NULL;
+	numArgs = i;
+
+	/* Get first character of first argument */
+	first = *args[0];
+	
+	/* Get first character of last argument */
+	last = *args[numArgs-1];
+
+
+
+}
+
+void appendPID() {
+
+	int j,k,l;
+//	printf("arg[0] length is: %d\n", strlen(args[1]));
+	for (j=0; j < numArgs; j++) {
+	
+		l = strlen(args[j])-1;
+		for (k=0; k<l; k++) {
+			if (*(args[j]+k) == *(args[j]+k+1)) {
+				if (*(args[j]+k) == '$') {
+//					printf("arg: %s\n", args[j]);
+//					fflush(stdout);
+				
+//					printf("argj + k = %s", args[j]+k);
+					fflush(stdout);
+
+					sprintf(args[j]+k, "%d",parent_PID);
+
+//					printf("arg: %s\n",args[j]);
+//					fflush(stdout);
+
+				}
+				
+			}
+//				printf("%d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
+//				fflush(stdout);
+		}
+
+
+	}
+
 }
 
 void displayArgs() {
@@ -138,67 +205,18 @@ int main( int argc, char * argv[]) {
 
 
 	/* Get number of arguments and assign to arg array */
-//	args = malloc(sizeof(char*)*512);
+	getArgs(temp);
 
-	for (i = 0; i < 512; i++) {
-		args[i] = malloc(30);
-
+	/* Check for tab, newline, or # symbol to begin user input */
+	if (!isValidInput()) {
+		continue;
 	}
-	i = 0;
-
-	token = strtok(temp, " ");
-
-	while (	token != NULL) {
-	
-		args[i] = token;
-		i++;
-		printf("args[%d]=%s", i-1, token);
-		fflush(stdout);
-
-	token = strtok(NULL, " ");
-		
-	}
-	args[i] = NULL;
-	numArgs = i;
 
 	/* Look through arguments and replace $$ with shell pid */
-//	printf("arg[0] length is: %d\n", strlen(args[1]));
-	for (j=0; j < numArgs; j++) {
-	
-		l = strlen(args[j])-1;
-		for (k=0; k<l; k++) {
-			if (*(args[j]+k) == *(args[j]+k+1)) {
-				if (*(args[j]+k) == '$') {
-					printf("arg: %s\n", args[j]);
-					fflush(stdout);
-				
-					printf("argj + k = %s", args[j]+k);
-
-					charwrit = sprintf(args[j]+k, "%d",parent_PID);
-
-					printf("arg: %s charwrit: %d\n",args[j], charwrit);
-					fflush(stdout);
-				}
-				
-			}
-				printf("%d %d = %c%c\n ", k,k+1,*(args[j]+k),*(args[j]+k+1));
-				fflush(stdout);
-		}
-
-
-	}	
-
-//	args[i] = NULL;
-//	numArgs = i;
+	appendPID();
 
 	/* display args for debugging */
 	displayArgs();
-
-	/* Get first character of first argument */
-	first = *args[0];
-	
-	/* Get first character of last argument */
-	last = *args[i-1];
 
 //	printf("first char: %c\n", first);
 
@@ -210,34 +228,19 @@ int main( int argc, char * argv[]) {
 	fflush(stdout);
 	
 
-	/* Check for tab, newline, or # symbol to begin user input */
-	if (!isValidInput()) {
+	/* If cd command received, change working directory */
+	if (strstr(message, "cd") == message) {
+		callDirectory();
 		continue;
 	}
-	else {
-		printf("valid\n");
-		fflush(stdout);
-	}
-}
-
-
-
-	/* If cd command received, change working directory */
-//	if (strstr(message, "cd") == message) {
-//		callDirectory();
-//		continue;
-//	}
 
 	/* If status command received, get status of last process */
-//	if (strstr(message, "status") == message) {
-//		status();
-//		continue;
-//	}
-
-	free(message);
-	for (i = 0; i < 512; i++) {
-		free(args[i]);
+	if (strstr(message, "status") == message) {
+		status();
+		continue;
 	}
-	free(args);
+
+
+	}
 
 }
