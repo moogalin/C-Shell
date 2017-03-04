@@ -205,6 +205,56 @@ void addToArray(pid_t pid) {
 
 }
 
+
+void displayPIDS() {
+	int i;
+
+	for (i=0; i < 400; i++) {
+		if (background_PIDS[i] != -1) {
+			printf("BG_PID[%d] = %i\n", i, background_PIDS[i]);
+			fflush(stdout);
+		}
+	}
+
+
+
+}
+
+void checkPIDS() {
+	int i, exitStatus, termSignal = -1;
+	int childExitMethod = -5;
+
+	for (i=0; i < 400; i++) {
+		if (background_PIDS[i] != -1) {
+	
+			/* check if PID is completed */
+			if (waitpid(background_PIDS[i],&childExitMethod, WNOHANG)) {
+				printf("background pid %i is done: ", background_PIDS[i]);
+				fflush(stdout);			
+
+				if (WIFEXITED(childExitMethod)) {
+					exitStatus = WEXITSTATUS(childExitMethod);
+					printf("exit value %d\n", exitStatus);
+					fflush(stdout);
+				}			
+				else {
+					termSignal = WTERMSIG(childExitMethod);	
+					printf("terminated by signal %d\n", termSignal);
+					fflush(stdout);				
+				}
+
+				background_PIDS[i] = -1;
+
+			}  	
+
+		}
+	}
+
+
+
+
+}
+
 int main( int argc, char * argv[]) {
 
 	parent_PID = getpid();
@@ -233,17 +283,12 @@ int main( int argc, char * argv[]) {
 	while(1) {
 
 	/* Display list of background pids for debugging */
-	for (i=0; i < 400; i++) {
-		if (background_PIDS[i] != -1) {
-			printf("BG_PID[%d] = %i\n", i, background_PIDS[i]);
-			fflush(stdout);
-			
-			printf("Checking if exists \n");
-			fflush(stdout);
+	displayPIDS();
 
-			
-		}
-	}
+	/* Check BG pids array for ended processes */
+	checkPIDS();
+
+	/* Display list of background pids for debugging */
 
 	foreground = 1;
 	i = 0;
@@ -253,6 +298,7 @@ int main( int argc, char * argv[]) {
 	fflush(stdout);
 	
 	/* retrieve message */
+	fflush(stdin);
 	getline(&message, &buffer, stdin);
 
 	/* If exit message received, terminate processes and exit shell */
@@ -327,13 +373,13 @@ int main( int argc, char * argv[]) {
 		printf("PARENT: Child process terminated, exiting!\n");
 		fflush(stdout);	
 	}
-	else {
+	/*else {
 		printf("background pid is %d\n", spawnPid);
 		fflush(stdout);		
 
 		addToArray(spawnPid);
 		continue;
-	}
+	}*/
 
 	}
 
