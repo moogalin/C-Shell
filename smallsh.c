@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* Global */
 pid_t parent_PID;
@@ -13,7 +14,8 @@ char * args[512];
 char first;
 char last;
 int numArgs = 0;
-char statusMsg[20];
+int statusVal = 0;
+char statusMsg[30];
 pid_t background_PIDS[400];
 
 
@@ -86,10 +88,12 @@ void callDirectory() {
 	}	
 }
 
-void status() {
-	printf("first word is status\n");
+void status(pid_t fgPid) {
+	printf(statusMsg);
 	fflush(stdout);
-	
+
+
+
 }
 
 void getArgs() {
@@ -106,8 +110,8 @@ void getArgs() {
 	printf("Message: %s\n", message);
 	fflush(stdout);
  
-	printf("temp: %s\n", temp);
-	fflush(stdout);
+//	printf("temp: %s\n", temp);
+//	fflush(stdout);
 
 	/* Get number of arguments and assign to arg array */
 	for (i = 0; i < 512; i++) {
@@ -255,6 +259,142 @@ void checkPIDS() {
 
 }
 
+void redirectAndExecute(int foreground) {
+	int i;
+	char inFile[20], outFile[20];
+	int inFD = -5;
+	int outFD = -5;
+	int devNull = -5;
+	int result;
+	char * params[10];
+	int numParams = 0;	
+	
+	printf("redirectAndExecute\n");
+	fflush(stdout);
+
+	if (!foreground) {
+		printf("bg process remove & arg\n");
+		fflush(stdout);
+
+		/* Prevent output and input from being read from terminal */
+		devNull = open("/dev/null", O_RDWR);
+
+		if (devNull == -1) {
+			perror("devNull open()");
+		}
+		
+		numArgs--;
+	}
+
+	args[numArgs] = NULL;
+
+
+	/* Perform redirection */
+	
+	for (i=0; i < numArgs; i++) {
+		if ( strcmp(args[i], ">") == 0 ) {
+			printf("args[%d] is >\n", i);
+			fflush(stdout);
+	
+			strcpy(outFile, args[i + 1]);
+
+			printf("output file is: %s\n", outFile);
+			fflush(stdout);
+
+			outFD = open(outFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+			if (outFD == -1) {
+				printf("cannot open %s for output\n", outFile);
+				fflush(stdout);
+				statusVal = 1;	
+				exit(1);	
+			}	
+			
+			args[i] = NULL;
+//			args[i+1] = " ";		
+		}
+		else if ( strcmp(args[i],"<") == 0 ) {
+			printf("args[%d] is <\n", i);
+			fflush(stdout);
+
+			strcpy(inFile, args[i + 1]);
+
+			printf("input file is: %s\n", inFile);
+			fflush(stdout); 
+
+			inFD = open(inFile, O_RDONLY);
+			
+			if (inFD == -1) {
+				printf("cannot open %s for input\n", inFile);
+				fflush(stdout);
+				statusVal = 1;
+				exit(1);
+			}
+			args[i] = NULL;
+//			args[i+1] = "";
+
+		}
+
+		else {
+
+		//	printf("else!\n");
+		//	printf("numParams = %d and i = %d\n", numParams, i);
+		//	params[numParams] =  args[i];
+		//	printf("params[%d] = %s\n", numParams, params[numParams]);
+		//	fflush(stdout);
+		//	numParams++;		
+	
+		}
+
+	}
+
+	displayArgs();
+
+	if (outFD != -5) {
+		result = dup2(outFD, 1);
+		if (result == -1) { perror("out dup2()"); exit(1); }
+	}
+
+	else {
+		if (!foreground) {
+			result = dup2(devNull, 1);
+			if (result == -1) { perror("devNull dup2 out()"); exit(1); }			
+		}
+	}
+
+	if (inFD != -5) {
+		result = dup2(inFD, 0);
+		if (result == -1) { perror("in dup2()"); exit(1); }	
+	}
+
+	else {
+		if (!foreground) {
+			result = dup2(devNull, 0);
+			if (result == -1) { perror("devNull dup2 in()"); exit(1); }
+		}
+	
+	}
+
+/*	for (i = 1; i < numArgs; i++) {
+			
+		if (strcmp(args[i], "<")) {
+			args[i] = NULL;
+		}
+		else {
+	
+
+	}
+*/
+
+//	printf("exec time\n");
+//	fflush(stdout);
+
+	if ( execvp(args[0],args) < 0 ) {
+		perror(args[0]);
+		exit(1);
+	}
+}
+
 int main( int argc, char * argv[]) {
 
 	parent_PID = getpid();
@@ -263,10 +403,12 @@ int main( int argc, char * argv[]) {
 	char temp[2048]; 
 	int i = 0, j, k, l;
 	int charwrit;
-	pid_t spawnPid = -5;	
+	pid_t spawnPid = -5;
+	pid_t fgPid = -5;	
 	int foreground = 1;
 	int childExitMethod = -5;
 	pid_t child_PID;
+	int result;
 
 	/* Print shell PID */
 	printf("Shell PID: %i\n", parent_PID);
@@ -324,12 +466,12 @@ int main( int argc, char * argv[]) {
 //	printf("first char: %c\n", first);
 
 	if (last == '&') {
-		printf("last char: %c\n", last);
+//		printf("last char: %c\n", last);
 		foreground = 0;
 	}
 
-	printf("message: %s\n", message);
-	fflush(stdout);
+//	printf("message: %s\n", message);
+//	fflush(stdout);
 	
 
 	/* If cd command received, change working directory */
@@ -340,7 +482,7 @@ int main( int argc, char * argv[]) {
 
 	/* If status command received, get status of last process */
 	if (strstr(message, "status") == message) {
-		status();
+		status(fgPid);
 		continue;
 	}
 
@@ -353,33 +495,58 @@ int main( int argc, char * argv[]) {
 	else if (spawnPid == 0) {
 			printf("I am the child process in action\n");
 			fflush(stdout);
-			printf("My parent: %i Me: %i\n", getppid(), getpid());
+//			printf("My parent: %i Me: %i\n", getppid(), getpid());
 			fflush(stdout);
 
-			sleep(10);
+			redirectAndExecute(foreground);
+
+			sleep(20);
+			
+			printf("done sleeping\n");
+			fflush(stdout);
 			exit(0);
 	}
 
 	
 	if (foreground) {
-		printf("Foreground process!\n");
-		fflush(stdout);
+		int exitStatus, termSignal;
+//		printf("Foreground process!\n");
+//		fflush(stdout);
 	
+		memset(statusMsg, '\0', sizeof(statusMsg));
 		printf("PARENT: PID: %d, waiting...\n", spawnPid);
 		fflush(stdout);
 
-		waitpid(spawnPid, &childExitMethod, 0);
+		result = waitpid(spawnPid, &childExitMethod, 0);
+
+		if (result == -1) {
+			perror("waitpid() failure:");
+		}
+
+		if (WIFEXITED(childExitMethod)) {
+			exitStatus = WEXITSTATUS(childExitMethod);
+			snprintf(statusMsg, sizeof(statusMsg), "exit value %d\n", exitStatus);
+		//	fflush(stdout);
+		}			
+
+		else {
+			termSignal = WTERMSIG(childExitMethod);	
+			snprintf(statusMsg, sizeof(statusMsg), "terminated by signal %d\n", termSignal);
+		//	fflush(stdout);				
+		}
+	
+
 
 		printf("PARENT: Child process terminated, exiting!\n");
 		fflush(stdout);	
 	}
-	/*else {
+	else {
 		printf("background pid is %d\n", spawnPid);
 		fflush(stdout);		
 
 		addToArray(spawnPid);
 		continue;
-	}*/
+	}
 
 	}
 
