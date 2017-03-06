@@ -18,21 +18,21 @@ int numArgs = 0;
 int statusVal = 0;
 char statusMsg[30];
 pid_t background_PIDS[400];
+int fgMode = 0;
 
-
-void catchSIGINT(int signo) {
-	char * message = "Caught SIGINT, sleeping for 5 seconds\n";
-	write(STDOUT_FILENO, message, 38);
-	raise(SIGUSR2);
-	sleep(5);
+void catchSIGTSTP(int signo) {
+	if (!fgMode) {
+		char * message = "Entering foreground-only mode (& is now ignored)\n";
+		write(STDOUT_FILENO, message, 49);
+		fgMode = 1;
+	}
+	else {
+		char * message = "Exiting foreground-only mode\n";
+		write(STDOUT_FILENO, message, 29);
+		fgMode = 0;
+	}
+	
 }
-
-/*void catchSIGUSR2(int signo) {
-	char * message = "Caught SIGUSR2, exiting!\n";
-	write(STDOUT_FILENO, message, 25);
-	exit(0);
-
-}*/
 
 int isValidInput() {
 	if ( first == '#') {
@@ -52,7 +52,20 @@ int isValidInput() {
 
 void cleanup() {
 
-	kill(0, SIGKILL);
+	int i, childExitMethod;
+
+	for (i=0; i < 400; i++) {
+
+		if (background_PIDS[i] != -1) {
+			kill(background_PIDS[i], SIGKILL );
+			waitpid(background_PIDS[i], &childExitMethod, 0);
+		}
+
+	} 
+
+//	displayPIDS();
+
+//	kill(0, SIGKILL);
 }
 
 void callDirectory() {
@@ -241,7 +254,12 @@ void redirectAndExecute(int foreground) {
 	char * params[10];
 	int numParams = 0;	
 	
+
+//	printf("in redirect\n");
+//	fflush(stdout);
+
 	if (!foreground) {
+		
 
 		/* Prevent output and input from being read from terminal */
 		devNull = open("/dev/null", O_RDWR);
@@ -252,6 +270,10 @@ void redirectAndExecute(int foreground) {
 		
 		numArgs--;
 	}
+
+//	if (fgMode) {
+//		numArgs--;
+//	}
 
 	args[numArgs] = NULL;
 
@@ -290,6 +312,7 @@ void redirectAndExecute(int foreground) {
 
 
 	}
+//	printf("redirect done\n");
 
 
 	if (outFD != -5) {
@@ -317,6 +340,9 @@ void redirectAndExecute(int foreground) {
 	
 	}
 
+
+//	printf("exec args\n");
+//	displayArgs();
 			
 	if ( execvp(args[0],args) < 0 ) {
 		perror(args[0]);
@@ -340,25 +366,18 @@ int main( int argc, char * argv[]) {
 	int result;
 
 	/*Initialize Signal Handlers */
-	struct sigaction SIGINT_action = {0};
-//	SIGINT_action.sa_handler = catchSIGINT;
+	struct sigaction SIGINT_action = {0}, SIGTSTP_action = {0};
 	SIGINT_action.sa_handler = SIG_IGN;
 	sigfillset(&SIGINT_action.sa_mask);
 	SIGINT_action.sa_flags = 0;
 
+	SIGTSTP_action.sa_handler = catchSIGTSTP;
+	sigfillset(&SIGTSTP_action.sa_mask);
+	SIGTSTP_action.sa_flags = SA_RESTART;
+
 	/* Signal actions in shell */
 	sigaction(SIGINT, &SIGINT_action, NULL);
-
-
-//	sigfillset(&SIGUSR2_action.sa_mask);
-//	SIGUSR2_action.sa_flags = 0;
-//	sigaction(SIGUSR2, &SIGUSR2_action, NULL);
-//	sigaction(SIGUSR2, &ignore_action, NULL);
-//	sigaction(SIGTERM, &ignore_action, NULL);
-//	sigaction(SIGHUP, &ignore_action, NULL);
-//	sigaction(SIGQUIT, &ignore_action, NULL);
-
-	
+	sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
 	/* Initialize array of PIDs to zero */
 	for (i =0; i < 400; i++) {
@@ -405,10 +424,22 @@ int main( int argc, char * argv[]) {
 	/* Look through arguments and replace $$ with shell pid */
 	appendPID();
 
-
+	/* move the last if thing */
 	if ((last == '&') && (strcmp(args[0], "echo") != 0) ) {
-		foreground = 0;
+		if (!fgMode) {
+			foreground = 0;
+		}
+		else {
+		
+		//	args[numArgs - 1] = NULL;
+			numArgs--;
+//			displayArgs();
+			foreground = 1;
+		}
 	}
+	
+//	printf("here\n");
+//	fflush(stdout);
 
 
 	/* If cd command received, change working directory */
@@ -433,7 +464,26 @@ int main( int argc, char * argv[]) {
 
 			SIGINT_action.sa_handler = SIG_DFL;
 			sigaction(SIGINT, &SIGINT_action, NULL);
+		
+			SIGTSTP_action.sa_handler = SIG_IGN;
+			sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
+/*			if ((last == '&') && (strcmp(args[0], "echo") != 0) ) {
+				if (!fgMode) {
+					printf("not fg mode\n");
+					fflush(stdout);
+					foreground = 0;
+				}
+				else {
+					args[numArgs - 1] = NULL;
+					displayArgs();
+					foreground = 1;
+				}
+			}
+*/			
+//			printf("spawn is %d\n", foreground);
+//			fflush(stdout);	
+	
 			redirectAndExecute(foreground);
 
 			exit(0);
@@ -441,6 +491,9 @@ int main( int argc, char * argv[]) {
 
 	
 	if (foreground) {
+//		printf("fg\n");
+//		fflush(stdout);
+
 		int exitStatus, termSignal;
 	
 		memset(statusMsg, '\0', sizeof(statusMsg));
